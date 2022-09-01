@@ -3,6 +3,7 @@ from skimage import io
 import numpy as np
 import matplotlib.pyplot as plt
 import PIL
+from PIL import ImageOps
 import time
 
 A = io.imread('grizzlypeakg.png')
@@ -43,6 +44,18 @@ plt.axis('off')
 plt.title("For loop method output\n --- Took %.4f seconds to process ---" % np_time)
 plt.show(block='false') # show window without stopping program
 
+bridge_img = PIL.Image.open("bridge.jpg")
+bridge_img = ImageOps.grayscale(bridge_img)
+mountain_img = PIL.Image.open("mountain.jpg")
+mountain_img = ImageOps.grayscale(mountain_img)
+mountains_img = PIL.Image.open("mountains.jpg")
+mountains_img = ImageOps.grayscale(mountains_img)
+nature_img = PIL.Image.open("nature.jpg")
+nature_img = ImageOps.grayscale(nature_img)
+_img = PIL.Image.open("bridge.jpg")
+bridge_img = ImageOps.grayscale(bridge_img)
+np_images = np.array(10)
+np_images[0] = np.array(bridge_img)
 
 
 
