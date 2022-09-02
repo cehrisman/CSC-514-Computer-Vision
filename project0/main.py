@@ -1,13 +1,9 @@
-import skimage
 import glob
 from skimage import io
 import numpy as np
-import matplotlib.pyplot as plt
 import PIL
-from PIL import ImageOps
 import time
 import cv2
-
 
 A = io.imread(r"C:\Users\Caleb\School\ClassWork\CSC-514\project0\Images\grizzlypeakg.png")
 (m1, n1) = A.shape
@@ -79,6 +75,36 @@ for img in path:
     cv_img.append(n)
 
 print(cv_img)
+
+path = glob.glob(r"C:\Users\Caleb\School\ClassWork\CSC-514\project0\Images\*.*")
+cv_img_RGB = []
+for img in path:
+    n = cv2.imread(img)
+    cv_img_RGB.append(n)
+
+loop_img_RGB = np.asarray(cv_img, dtype=object)
+np_img_RGB = loop_img_RGB
+
+start = time.time()
+for img in loop_img_RGB:
+    (m1, n1, k1) = img.shape
+    for i in range(m1):
+        for j in range(n1):
+            for k in range(k1):
+                if img[i,j,k] <= 10 :
+                    img[i,j,k] = 0
+
+end = time.time() - start
+print("For loop method output\n --- Took %.4f seconds to process ---" % end)
+
+start = time.time()
+
+for img in np_img_RGB:
+    img[img <= 10] = 0
+
+np_time = time.time() - start
+
+print("For loop method output\n --- Took %.4f seconds to process ---" % np_time)
 
 
 
