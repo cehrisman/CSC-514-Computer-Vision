@@ -5,7 +5,6 @@ from matplotlib import pyplot as plt
 from skimage.color import rgb2gray
 from scipy import signal
 
-
 gauss_mask = np.array([[1, 4, 7, 4, 1],
                        [4, 16, 26, 16, 4],
                        [7, 26, 41, 26, 7],
@@ -19,6 +18,7 @@ sobel_x = np.array([[3, 0, -3],
 sobel_y = np.array([[3, 10, 3],
                     [0, 0, 0],
                     [-3, -10, -3]])
+
 
 def harris(img, k, threshold):
     points = []
@@ -55,19 +55,13 @@ def harris(img, k, threshold):
             r_val_matrix[r][c] = response
 
     cv2.normalize(r_val_matrix, r_val_matrix, 1, 0, cv2.NORM_MINMAX)
-    print(r_val_matrix)
+
     for y in range(int(height * 0.05), int(height - height * 0.05)):
         for x in range(int(width * 0.05), int(width - width * 0.05)):
             if r_val_matrix[y, x] > threshold:
                 vals = r_val_matrix[y - offset:y + 1 + offset, x - offset:x + 1 + offset]
 
                 if r_val_matrix[y, x] == np.max(vals):
-                    G_y = np.sum(dy[y - 1:y + 2, x - 1:x + 2])
-                    G_x = np.sum(dx[y - 1:y + 2, x - 1:x + 2])
-
-                    theta = (math.atan2(G_y, G_x)) * (180 / math.pi)
-                    magnitude = math.sqrt(G_x ** 2 + G_y ** 2)
-
-                    points.append([(x, y), theta, magnitude, vals])
+                    points.append((x, y))
 
     return points
