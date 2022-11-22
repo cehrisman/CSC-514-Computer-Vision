@@ -19,47 +19,33 @@ def show_image_get_clicks(img):
         plt.title('User Point Selection')
 
     pts = np.asarray(pts, dtype=object)
-    print("Click Coords: ")
-    print(pts)
     return pts
 
 
 # Computes a homography matrix given matching points
 def computeHomography(src, dest):
-    n = src.shape[0]
-    A = []
-    for i in range(n):
-        A.append(getPartialA(src[i], dest[i]))
-    A = np.concatenate(A, axis=0)
+    n = 2 * min([len(src), len(dest)])
+    A = np.zeros((n, 9))
 
-    u, s, vh = np.linalg.svd(A, full_matrices=True)
+    for i in range(int(n / 2)):
+        x_d, y_d = dest[i]
+        x_s, y_s = src[i]
+        A[2 * i, :] = np.asarray([[x_s, y_s, 1, 0, 0, 0, -x_d * x_s, -x_d * y_s, -x_d]])
+        A[2 * i + 1, :] = np.asarray([[0, 0, 0, x_s, y_s, 1, -y_d * x_s, -y_d * y_s, -y_d]])
+
+    u, s, vh = np.linalg.svd(A)
     homography = vh[-1].reshape((3, 3))
     return homography
-
-
-def getPartialA(src, dest):
-    x, y = src[0], src[1]
-    x_dest, y_dest = dest[0], dest[1]
-
-    return np.array([[0, 0, 0, -x, -y, -1, y_dest * x, y_dest * y, y_dest],
-                     [x, y, 1, 0, 0, 0, -x_dest * x, -x_dest * y, -x_dest]])
 
 
 # Applies the Homography matrix - H
 def warpPerspective(src, H):
     dest = np.zeros_like(src)
     r, c, _ = np.shape(src)
-    H = np.linalg.inv(H)
-    print("H matrix: ")
-    print(H)
     for i in range(r):
         for j in range(c):
-            x_warp = ((H[0][0] * j) + (H[0][1] * i + H[0][2])) // \
-                     ((H[2][0] * j) + (H[2][1] * i + H[2][2]))
-            y_warp = ((H[1][0] * j) + (H[1][1] * i + H[1][2])) // \
-                     ((H[2][0] * j) + (H[2][1] * i + H[2][2]))
-            x_warp = round(x_warp)
-            y_warp = round(y_warp)
+
+            x_warp, y_warp = computeWarp([j, i, 1], H)
             if abs(x_warp) >= c or abs(y_warp) >= r:
                 pass
             else:
@@ -67,6 +53,11 @@ def warpPerspective(src, H):
                 dest[i, j] = val
 
     return dest
+
+
+def computeWarp(pt, H):
+    pt_warp = np.matmul(H, pt)
+    return pt_warp / pt_warp[-1]
 
 
 def matchFeatures(img1, img2):
@@ -82,6 +73,65 @@ def matchFeatures(img1, img2):
     matches = bf.match(des1, des2)
     matches = list(sorted(matches, key=lambda x: x.distance))[0:20]
 
+    # img = cv2.drawMatches(img1, kp1, img2, kp2, matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    # plt.imshow(img), plt.show()
     list_kp1 = [kp1[mat.queryIdx].pt for mat in matches]
     list_kp2 = [kp2[mat.trainIdx].pt for mat in matches]
     return np.asarray(list_kp1), np.asarray(list_kp2)
+
+
+def applyProjection(H, img1, img2):
+    edges = np.zeros((4, 2))
+
+    for (i, x, y) in [(0, 0, 0), (1, 0, len(img2)), (2, len(img2[0]), 0), (3, len(img2[0]), len(img2))]:
+        pt = np.asarray([x, y, 1]).reshape(-1, 1)
+        pt2 = np.linalg.inv(H).dot(pt)
+        edges[i] = [pt2[0] / pt2[2], pt2[1] / pt2[2]]
+
+    ([minx, miny], [maxx, maxy]) = (np.min(edges, axis=0), np.max(edges, axis=0))
+    x, pad_x, y, pad_y = (len(img1[0]), 0, len(img1), 0)
+    if maxx > x:
+        x = int(maxx) + 1
+    if minx < 0:
+        pad_x = -int(minx)
+        x += pad_x
+    if maxy > y:
+        y = int(maxy) + 1
+    if miny < 0:
+        pad_y = -int(miny)
+        y += pad_y
+
+    projection = np.zeros((y, x, 3), dtype='int32')
+
+    for r in range(len(img1)):
+        for c in range(len(img1[0])):
+            projection[r + pad_y, c + pad_x] = img1[r, c]
+
+    for r in range(y):
+        for c in range(x):
+            pt = np.asarray([c - pad_x, r - pad_y, 1]).reshape(-1, 1)
+            pt2 = computeWarp(pt, H)
+            xx, yy = (int(pt2[0] / pt2[2]), int(pt2[1] / pt2[2]))
+            if xx > 0 and yy > 0:
+                try:
+
+                    projection[r, c] = img2[yy, xx]
+                except:
+                    pass
+
+    return projection
+
+
+def warpImageToArea(img):
+    kp1, kp2 = show_image_get_clicks(img)
+
+    corners = np.array([[0, 0],
+                        [0, len(img[1])],
+                        [len(img[1][0]), 0],
+                        [len(img[1][0]), len(img[1])]])
+    print(kp1)
+    h = computeHomography(kp1, corners)
+
+    img = applyProjection(h, img[0], img[1])
+
+    return img
